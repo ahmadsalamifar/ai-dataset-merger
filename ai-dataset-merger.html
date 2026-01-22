@@ -1,0 +1,327 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Dataset Merger Tool</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=Vazirmatn:wght@400;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --font-en: 'Inter', sans-serif;
+            --font-fa: 'Vazirmatn', sans-serif;
+        }
+        body { font-family: var(--font-en); background-color: #f3f4f6; }
+        .lang-fa { font-family: var(--font-fa); }
+        
+        .drop-zone {
+            border: 2px dashed #cbd5e1;
+            transition: all 0.3s ease;
+        }
+        .drop-zone.active {
+            border-color: #3b82f6;
+            background-color: #eff6ff;
+        }
+        
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar { width: 8px; height: 8px; }
+        ::-webkit-scrollbar-track { background: #f1f1f1; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col items-center py-10 px-4 text-slate-800">
+
+    <!-- Language Toggle -->
+    <div class="fixed top-5 right-5 z-50">
+        <button id="langBtn" class="bg-white px-4 py-2 rounded-lg shadow-sm border border-gray-200 hover:bg-gray-50 transition text-sm font-semibold text-slate-600">
+            فارسی
+        </button>
+    </div>
+
+    <!-- Main Card -->
+    <div class="w-full max-w-4xl bg-white rounded-2xl shadow-xl overflow-hidden">
+        
+        <!-- Header -->
+        <div class="bg-indigo-600 p-8 text-center text-white">
+            <h1 class="text-3xl font-bold mb-2" data-key="title">AI Dataset File Merger</h1>
+            <p class="text-indigo-100 opacity-90" data-key="subtitle">Combine multiple text files into a single document for AI training or prompting.</p>
+        </div>
+
+        <div class="p-6 md:p-8">
+            
+            <!-- Drop Zone -->
+            <div id="dropZone" class="drop-zone rounded-xl p-10 text-center cursor-pointer mb-6 relative group">
+                <input type="file" id="fileInput" multiple class="absolute inset-0 w-full h-full opacity-0 cursor-pointer" />
+                <div class="pointer-events-none">
+                    <svg class="w-12 h-12 text-gray-400 mx-auto mb-3 group-hover:scale-110 transition-transform duration-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
+                    <p class="text-lg font-semibold text-gray-700" data-key="dropTitle">Drag files here or click to select</p>
+                    <p class="text-sm text-gray-500 mt-1" data-key="dropSub">Supports .txt, .md, .json, .csv, code files, etc.</p>
+                </div>
+            </div>
+
+            <!-- File List & Controls -->
+            <div id="controlsArea" class="hidden transition-all duration-300">
+                <div class="flex justify-between items-center mb-3">
+                    <h3 class="font-bold text-gray-700"><span data-key="selectedFiles">Selected Files</span> (<span id="fileCount">0</span>)</h3>
+                    <button onclick="clearAllFiles()" class="text-red-500 text-sm hover:underline" data-key="clearAll">Clear All</button>
+                </div>
+                
+                <!-- File List Container -->
+                <div id="fileList" class="bg-gray-50 rounded-lg border border-gray-200 p-2 max-h-48 overflow-y-auto mb-6 grid grid-cols-1 md:grid-cols-2 gap-2">
+                    <!-- Files will be injected here -->
+                </div>
+
+                <!-- Merge Button -->
+                <button onclick="mergeFiles()" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-4 px-6 rounded-xl transition shadow-lg shadow-indigo-500/30 flex items-center justify-center gap-2 mb-8">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"></path></svg>
+                    <span data-key="btnMerge">Merge Files Now</span>
+                </button>
+            </div>
+
+            <!-- Output Area -->
+            <div id="outputArea" class="hidden">
+                <div class="flex justify-between items-center mb-2">
+                    <label class="font-bold text-gray-700" data-key="outputLabel">Merged Result:</label>
+                    <span class="text-xs text-gray-400" id="totalChars">0 chars</span>
+                </div>
+                
+                <textarea id="output" class="w-full h-96 p-4 border border-gray-300 rounded-xl bg-slate-50 font-mono text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none resize-none mb-4" readonly></textarea>
+                
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <button onclick="copyToClipboard()" class="bg-white border-2 border-gray-200 text-gray-700 hover:border-blue-500 hover:text-blue-600 font-bold py-3 px-4 rounded-xl transition flex items-center justify-center gap-2">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3"></path></svg>
+                        <span data-key="btnCopy">Copy to Clipboard</span>
+                    </button>
+                    
+                    <button onclick="downloadResult()" class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3 px-4 rounded-xl transition shadow-lg shadow-emerald-500/30 flex items-center justify-center gap-2">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
+                        <span data-key="btnDownload">Download Text File</span>
+                    </button>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- Footer -->
+    <div class="mt-8 text-center">
+        <p class="text-gray-400 text-sm" data-key="footer">Client-side processing • Secure & Private</p>
+        <p class="text-gray-400 text-sm mt-2">
+            <span data-key="developedBy">Developed by</span> 
+            <a href="https://github.com/ahmadsalamifar/" target="_blank" class="text-indigo-500 hover:text-indigo-600 font-medium transition-colors">
+                Ahmad Salami Far
+            </a>
+        </p>
+    </div>
+
+    <script>
+        const translations = {
+            en: {
+                title: "AI Dataset File Merger",
+                subtitle: "Combine multiple text files into a single document for AI training or prompting.",
+                dropTitle: "Drag files here or click to select",
+                dropSub: "Supports .txt, .md, .json, .csv, code files, etc.",
+                selectedFiles: "Selected Files",
+                clearAll: "Clear All",
+                btnMerge: "Merge Files Now",
+                outputLabel: "Merged Result:",
+                btnCopy: "Copy to Clipboard",
+                btnDownload: "Download Text File",
+                footer: "Client-side processing • Secure & Private",
+                developedBy: "Developed by",
+                btnLang: "فارسی",
+                copied: "Copied!",
+                copy: "Copy to Clipboard",
+                processing: "Processing...",
+                errorRead: "Error reading file: "
+            },
+            fa: {
+                title: "ابزار ادغام فایل برای هوش مصنوعی",
+                subtitle: "ادغام چندین فایل متنی در یک سند واحد برای ساخت دیتاست یا پرامپت.",
+                dropTitle: "فایل‌ها را اینجا بکشید یا کلیک کنید",
+                dropSub: "پشتیبانی از انواع فایل‌های متنی (کد، متن، جیسون و...)",
+                selectedFiles: "فایل‌های انتخاب شده",
+                clearAll: "حذف همه",
+                btnMerge: "ادغام فایل‌ها",
+                outputLabel: "نتیجه ادغام:",
+                btnCopy: "کپی در حافظه",
+                btnDownload: "دانلود فایل متنی",
+                footer: "پردازش سمت کاربر • امن و خصوصی",
+                developedBy: "توسعه توسط",
+                btnLang: "English",
+                copied: "کپی شد!",
+                copy: "کپی در حافظه",
+                processing: "در حال پردازش...",
+                errorRead: "خطا در خواندن فایل: "
+            }
+        };
+
+        let currentLang = 'en';
+        let filesQueue = []; // Store File objects
+
+        // --- Elements ---
+        const langBtn = document.getElementById('langBtn');
+        const dropZone = document.getElementById('dropZone');
+        const fileInput = document.getElementById('fileInput');
+        const controlsArea = document.getElementById('controlsArea');
+        const fileList = document.getElementById('fileList');
+        const fileCount = document.getElementById('fileCount');
+        const outputArea = document.getElementById('outputArea');
+        const outputText = document.getElementById('output');
+        const totalChars = document.getElementById('totalChars');
+
+        // --- Language Toggle ---
+        langBtn.addEventListener('click', () => {
+            currentLang = currentLang === 'en' ? 'fa' : 'en';
+            const isFa = currentLang === 'fa';
+            document.documentElement.dir = isFa ? 'rtl' : 'ltr';
+            document.documentElement.lang = currentLang;
+            document.body.classList.toggle('lang-fa', isFa);
+            
+            document.querySelectorAll('[data-key]').forEach(el => {
+                const key = el.getAttribute('data-key');
+                if(translations[currentLang][key]) el.innerText = translations[currentLang][key];
+            });
+            langBtn.innerText = translations[currentLang].btnLang;
+        });
+
+        // --- File Handling ---
+        fileInput.addEventListener('change', (e) => addFiles(e.target.files));
+        
+        dropZone.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            dropZone.classList.add('active');
+        });
+        dropZone.addEventListener('dragleave', () => dropZone.classList.remove('active'));
+        dropZone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            dropZone.classList.remove('active');
+            addFiles(e.dataTransfer.files);
+        });
+
+        function addFiles(newFiles) {
+            if (!newFiles || newFiles.length === 0) return;
+            
+            // Convert FileList to Array and filter/add
+            Array.from(newFiles).forEach(file => {
+                // Optional: Check if file is text/code based (skip images/binaries ideally, but let's allow flexibility)
+                filesQueue.push(file);
+            });
+
+            updateUI();
+            outputArea.classList.add('hidden'); // Hide output if new files added
+        }
+
+        function updateUI() {
+            if (filesQueue.length > 0) {
+                controlsArea.classList.remove('hidden');
+                renderFileList();
+            } else {
+                controlsArea.classList.add('hidden');
+            }
+            fileCount.innerText = filesQueue.length;
+        }
+
+        function renderFileList() {
+            fileList.innerHTML = '';
+            filesQueue.forEach((file, index) => {
+                const div = document.createElement('div');
+                div.className = 'bg-white border border-gray-200 rounded px-3 py-2 text-sm flex justify-between items-center group';
+                div.innerHTML = `
+                    <span class="truncate font-mono text-gray-600 w-10/12 text-left dir-ltr">${file.name}</span>
+                    <button onclick="removeFile(${index})" class="text-gray-300 hover:text-red-500 transition">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                    </button>
+                `;
+                fileList.appendChild(div);
+            });
+        }
+
+        window.removeFile = function(index) {
+            filesQueue.splice(index, 1);
+            updateUI();
+        };
+
+        window.clearAllFiles = function() {
+            filesQueue = [];
+            fileInput.value = ''; // Reset input
+            updateUI();
+            outputArea.classList.add('hidden');
+        };
+
+        // --- Merge Logic ---
+        window.mergeFiles = async function() {
+            const btn = document.querySelector('button[onclick="mergeFiles()"]');
+            const originalText = btn.innerText;
+            btn.innerText = translations[currentLang].processing;
+            btn.disabled = true;
+
+            try {
+                const contents = await Promise.all(filesQueue.map(readFileContent));
+                
+                const merged = contents.join('\n\n');
+                
+                outputText.value = merged;
+                totalChars.innerText = `${merged.length.toLocaleString()} chars`;
+                
+                outputArea.classList.remove('hidden');
+                // Scroll to output
+                outputArea.scrollIntoView({ behavior: 'smooth' });
+
+            } catch (err) {
+                alert(translations[currentLang].errorRead + err.message);
+            } finally {
+                btn.innerText = originalText; // Reset text but keep localized if needed via re-render logic, simplified here
+                // Ideally refresh text from key
+                const key = btn.querySelector('span')?.getAttribute('data-key');
+                if(key) btn.querySelector('span').innerText = translations[currentLang][key];
+                else btn.innerText = translations[currentLang].btnMerge; // Fallback
+                
+                btn.disabled = false;
+            }
+        };
+
+        function readFileContent(file) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    const content = e.target.result;
+                    // Format for AI Context
+                    const header = `--- START OF FILE: ${file.name} ---`;
+                    const footer = `--- END OF FILE: ${file.name} ---`;
+                    resolve(`${header}\n${content}\n${footer}`);
+                };
+                reader.onerror = (e) => reject(new Error(file.name));
+                reader.readAsText(file);
+            });
+        }
+
+        // --- Export Actions ---
+        window.copyToClipboard = function() {
+            outputText.select();
+            document.execCommand('copy'); // Fallback/Standard
+            // navigator.clipboard.writeText(outputText.value); // Modern
+            
+            const btn = document.querySelector('button[onclick="copyToClipboard()"] span');
+            const original = btn.innerText;
+            btn.innerText = translations[currentLang].copied;
+            setTimeout(() => {
+                btn.innerText = translations[currentLang].btnCopy;
+            }, 2000);
+        };
+
+        window.downloadResult = function() {
+            const blob = new Blob([outputText.value], { type: 'text/plain;charset=utf-8' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `merged-dataset-${new Date().toISOString().slice(0,10)}.txt`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+        };
+
+    </script>
+</body>
+</html>
